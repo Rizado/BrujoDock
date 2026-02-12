@@ -13,6 +13,7 @@ class CairoDock:
     def __init__(self, settings):
         self.settings = settings
         self.apps = {}  # app -> { 'icon_surface': ..., 'windows': [...], 'badge_surface': None }
+        self.groups = {}
         self.icon_size = 32
         self.spacing = 4
         self.padding = 16
@@ -44,56 +45,65 @@ class CairoDock:
 
         # Размер и позиция
         self.update_geometry()
-
         self.window.show_all()
 
-    def update_geometry(self):
-        width = max(1, len(self.apps) * (self.icon_size + self.spacing) + self.padding * 2)
         height = self.settings.get("height", 48)
+        set_strut(self.window, height)
 
-        # Сначала устанавливаем размер
+    def update_geometry(self):
+        if len(self.groups) == 0:
+            width = self.padding * 2
+        else:
+            width = self.padding * 2 + self.icon_size * len(self.groups) + self.spacing * (len(self.groups) - 1)
+        height = self.settings.get("height", 40)
+
         self.window.set_default_size(width, height)
         self.window.resize(width, height)
 
-        # Затем получаем актуальные геометрии
         display = Gdk.Display.get_default()
-        monitor = display.get_primary_monitor()
-        geom = monitor.get_workarea()
 
-        # Центрируем по ширине, но **оставляем высоту фиксированной**
-        x = geom.x + (geom.width - width) // 2
-        y = geom.y + geom.height - height  # ← всегда внизу
+        monitor = display.get_primary_monitor()
+        monitor_geom = monitor.get_geometry()  # ← физическая область монитора
+
+        x = monitor_geom.x + (monitor_geom.width - width) // 2
+        y = monitor_geom.y + monitor_geom.height - height
 
         self.window.move(x, y)
+        set_strut(self.window, height)
         self.drawing_area.queue_draw()
 
-    def add_app(self, app, windows):
-        """Добавляет или обновляет приложение"""
-        if app in self.apps:
-            # Обновляем список окон
-            self.apps[app]['windows'] = windows
-        else:
-            # Новое приложение
+    def add_app(self, app, windows, group_key):
+        if not group_key:
+            group_key = "unknown"
+
+        if group_key not in self.groups:
             icon_surface = self.load_icon_surface(app)
-            self.apps[app] = {
+            self.groups[group_key] = {
+                'app': app,
+                'windows': [],
                 'icon_surface': icon_surface,
-                'windows': windows,
                 'badge_surface': None
             }
 
+        # Обновляем окна (удаляем дубли)
+        self.groups[group_key]['windows'] = list({id(w): w for w in windows}.values())
+
         # Обновляем бейдж
-        count = len(windows)
-        self.apps[app]['badge_surface'] = self.create_badge_surface(count)
+        count = len(self.groups[group_key]['windows'])
+        self.groups[group_key]['badge_surface'] = self.create_badge_surface(count)
 
         self.update_geometry()
 
-    def remove_app(self, app):
-        """Удаляет приложение"""
-        if app in self.apps:
-            del self.apps[app]
+    def remove_group(self, group_key):
+        if group_key in self.groups:
+            del self.groups[group_key]
             self.update_geometry()
 
     def load_icon_surface(self, app):
+        if self.icon_size <= 0:
+            print("[ERROR] icon_size <= 0!")
+            return None
+
         """Загружает иконку через Wnck.Application.get_mini_icon()"""
         width = self.icon_size
         height = self.icon_size
@@ -139,6 +149,8 @@ class CairoDock:
         y = height / 2 - text_extents.height / 2 - text_extents.y_bearing
         ctx.move_to(x, y)
         ctx.show_text(letter)
+
+        print(f"[ICON] Возвращаем surface: {surface is not None}")
 
         return surface
 
@@ -198,7 +210,6 @@ class CairoDock:
         ctx.show_text(letter)
 
     def on_draw(self, widget, cr):
-        """Основная отрисовка"""
         cr.set_source_rgba(0, 0, 0, 0.3)
         cr.paint()
 
@@ -207,18 +218,16 @@ class CairoDock:
         y_pos = (dock_height - self.icon_size) // 2
 
         x_offset = self.padding
-        for app, data in self.apps.items():
-            # Рисуем иконку
+        for group_key, data in self.groups.items():  # ← ИСПРАВЛЕНО
             icon_surface = data['icon_surface']
             if icon_surface:
                 cr.set_source_surface(icon_surface, x_offset, y_pos)
                 cr.paint()
 
-                # Рисуем бейдж (если есть)
                 badge_surface = data['badge_surface']
                 if badge_surface:
-                    badge_x = x_offset + self.icon_size - 16  # справа
-                    badge_y = y_pos  # сверху
+                    badge_x = x_offset + self.icon_size - 16
+                    badge_y = y_pos
                     cr.set_source_surface(badge_surface, badge_x, badge_y)
                     cr.paint()
 
@@ -236,13 +245,10 @@ class CairoDock:
             return
 
         x_offset = self.padding
-        for app, data in self.apps.items():
+        for group_key, data in self.groups.items():  # ← ИСПРАВЛЕНО
             if x_offset <= event.x <= x_offset + self.icon_size:
                 windows = data['windows']
-                if len(windows) == 1:
-                    windows[0].activate(Gdk.CURRENT_TIME)
-                elif len(windows) > 1:
-                    # Пока просто активируем первое
+                if windows:
                     windows[0].activate(Gdk.CURRENT_TIME)
                 break
             x_offset += self.icon_size + self.spacing
