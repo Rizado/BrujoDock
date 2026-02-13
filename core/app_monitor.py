@@ -38,6 +38,8 @@ class AppMonitor:
             self._on_window_opened(self.screen, window)
 
     def _on_window_opened(self, screen, window):
+        if window.get_pid() == os.getpid():
+            return
         wtype = window.get_window_type()
         if wtype in (Wnck.WindowType.DESKTOP, Wnck.WindowType.DOCK, Wnck.WindowType.SPLASHSCREEN):
             return

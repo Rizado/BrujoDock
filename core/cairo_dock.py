@@ -7,6 +7,7 @@ from gi.repository import Gtk, Gdk, Gio, GdkPixbuf
 import cairo
 import math
 from core.strut_manager import set_strut
+from .utils import format_window_count
 
 
 class CairoDock:
@@ -35,13 +36,18 @@ class CairoDock:
 
         # DrawingArea
         self.drawing_area = Gtk.DrawingArea()
+        self.drawing_area.set_has_tooltip(True)
+        self.drawing_area.connect("query-tooltip", self.on_query_tooltip)
         self.drawing_area.connect("draw", self.on_draw)
         self.drawing_area.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK |
             Gdk.EventMask.POINTER_MOTION_MASK
         )
         self.drawing_area.connect("button-press-event", self.on_click)
-        self.window.add(self.drawing_area)
+
+        self.overlay = Gtk.Overlay()
+        self.overlay.add(self.drawing_area)  # основной контент
+        self.window.add(self.overlay)
 
         # Размер и позиция
         self.update_geometry()
@@ -252,6 +258,20 @@ class CairoDock:
                     windows[0].activate(Gdk.CURRENT_TIME)
                 break
             x_offset += self.icon_size + self.spacing
+
+    def on_query_tooltip(self, widget, x, y, keyboard_mode, tooltip):
+        # Определяем, над какой иконкой курсор
+        x_offset = self.padding
+        for group_key, data in self.groups.items():
+            if x_offset <= x <= x_offset + self.icon_size:
+                app_name = data['app'].get_name() or "Безымянное окно"
+                count = len(data['windows'])
+                text = f"{app_name} ({format_window_count(count)})"
+                tooltip.set_text(text)
+                return True
+            x_offset += self.icon_size + self.spacing
+        return False
+
 
     def run(self):
         Gtk.main()
