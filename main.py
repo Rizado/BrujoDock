@@ -8,15 +8,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config.manager import load_settings
 from core.app_monitor import AppMonitor
-from core.cairo_dock import CairoDock
-from plugins.thumbnail_preview import load as load_thumbnail_plugin
+from core.brujo_dock import BrujoDock
 
+__version__ = "0.1.0"
 
 class DockApp:
     def __init__(self):
         self.settings = load_settings()
-        self.dock = CairoDock(self.settings)
-        self.thumbnail_plugin = load_thumbnail_plugin(self.dock)
+        self.dock = BrujoDock(self.settings)
         self.monitor = AppMonitor(self.on_app_added, self.on_app_removed)
 
     def on_app_added(self, app, windows, group_key):

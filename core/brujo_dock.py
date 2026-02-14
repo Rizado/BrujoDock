@@ -1,4 +1,4 @@
-# core/cairo_dock.py
+# core/brujo_dock.py
 import gi
 
 gi.require_version('Gtk', '3.0')
@@ -8,13 +8,15 @@ import cairo
 import math
 from core.strut_manager import set_strut
 from .utils import format_window_count
+from .plugin_manager import PluginManager
 
 
-class CairoDock:
+class BrujoDock:
     def __init__(self, settings):
         self.settings = settings
         self.apps = {}  # app -> { 'icon_surface': ..., 'windows': [...], 'badge_surface': None }
         self.groups = {}
+        self._reserved_right = 0
         self.icon_size = 32
         self.spacing = 4
         self.padding = 16
@@ -49,6 +51,9 @@ class CairoDock:
         self.overlay.add(self.drawing_area)  # основной контент
         self.window.add(self.overlay)
 
+        self.plugin_manager = PluginManager(self)
+        self.plugin_manager.load_plugins()
+
         # Размер и позиция
         self.update_geometry()
         self.window.show_all()
@@ -57,10 +62,12 @@ class CairoDock:
         set_strut(self.window, height)
 
     def update_geometry(self):
-        if len(self.groups) == 0:
-            width = self.padding * 2
-        else:
-            width = self.padding * 2 + self.icon_size * len(self.groups) + self.spacing * (len(self.groups) - 1)
+        base_width = self.padding + len(self.groups) * (self.icon_size + self.spacing)
+        if self.groups:
+            base_width -= self.spacing
+        width = base_width + self._reserved_right
+
+
         height = self.settings.get("height", 40)
 
         self.window.set_default_size(width, height)
@@ -215,6 +222,14 @@ class CairoDock:
         ctx.move_to(x, y)
         ctx.show_text(letter)
 
+    def reserve_right_space(self, plugin_name: str, width: int) -> None:
+        """Плагин запрашивает ширину справа."""
+        if not hasattr(self, '_plugin_reserved'):
+            self._plugin_reserved = {}
+        self._plugin_reserved[plugin_name] = width
+        self._reserved_right = sum(self._plugin_reserved.values())
+        self.update_geometry()
+
     def on_draw(self, widget, cr):
         cr.set_source_rgba(0, 0, 0, 0.3)
         cr.paint()
@@ -238,6 +253,10 @@ class CairoDock:
                     cr.paint()
 
             x_offset += self.icon_size + self.spacing
+
+        width = widget.get_allocated_width()
+        height = widget.get_allocated_height()
+        self.plugin_manager.call_plugins("on_draw", cr, width, height)
 
     def on_click(self, widget, event):
         if event.button != 1:
@@ -272,6 +291,21 @@ class CairoDock:
             x_offset += self.icon_size + self.spacing
         return False
 
+    def _on_tick(self):
+        self.plugin_manager.call_plugins("on_tick")
+        return True
+
+    def on_motion(self, widget, event):
+        self.plugin_manager.call_plugins("on_hover", event.x, event.y)
+        return True
+
+    def on_leave(self, widget, event):
+        self.plugin_manager.call_plugins("on_leave")
+        return True
+
+    def show_context_menu(self, event):
+        # Пока заглушка
+        print("Меню вызвано")
 
     def run(self):
         Gtk.main()

@@ -7,25 +7,31 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 import cairo
 import os
 from core.utils import format_window_count
+from core.plugin_base import PluginBase
 
-class ThumbnailPreviewPlugin:
-    def __init__(self, dock):
-        self.dock = dock
+
+class Plugin(PluginBase):
+    name = "Thumbnail Preview"
+    version = "0.1"
+    def on_init(self):
+        # self.dock = dock
         self.hovered_group = None
         self.thumbnail_window = None
         self.enabled = True  # можно переключать через settings
 
-        self.dock.drawing_area.set_has_tooltip(True)  # ← ВАЖНО: здесь!
+        da = self.dock.drawing_area
+
+        da.set_has_tooltip(True)  # ← ВАЖНО: здесь!
 
         # Подключаем события
-        self.dock.drawing_area.add_events(
+        da.add_events(
             Gdk.EventMask.ENTER_NOTIFY_MASK |
             Gdk.EventMask.LEAVE_NOTIFY_MASK |
             Gdk.EventMask.POINTER_MOTION_MASK
         )
-        self.dock.drawing_area.connect("enter-notify-event", self.on_enter)
-        self.dock.drawing_area.connect("leave-notify-event", self.on_leave)
-        self.dock.drawing_area.connect("motion-notify-event", self.on_motion)
+        da.connect("enter-notify-event", self.on_enter)
+        da.connect("leave-notify-event", self.on_leave)
+        da.connect("motion-notify-event", self.on_motion)
 
     def on_enter(self, widget, event):
         print("[DEBUG] on_enter")
@@ -55,8 +61,14 @@ class ThumbnailPreviewPlugin:
             self.hovered_group = hovered_group
 
             if not self.enabled:
-                # Устанавливаем tooltip
-                self.dock.drawing_area.set_tooltip_text(tooltip_text)
+                if hovered_group and hovered_group in self.dock.groups:
+                    data = self.dock.groups[hovered_group]
+                    app_name = data['app'].get_name() or "Безымянное окно"
+                    count = len(data['windows'])
+                    tooltip_text = f"{app_name} ({format_window_count(count)})"
+                    self.dock.drawing_area.set_tooltip_text(tooltip_text)
+                else:
+                    self.dock.drawing_area.set_tooltip_text(None)
             else:
                 # Активный плагин → скрываем tooltip, показываем превью
                 self.dock.drawing_area.set_tooltip_text(None)  # ← КЛЮЧЕВАЯ СТРОКА
@@ -91,9 +103,6 @@ class ThumbnailPreviewPlugin:
         print(f"[HOVER] {app_name} ({format_window_count(count)})")
 
     def get_scaled_thumbnail(self, window, max_size=240):
-        print("[THUMB] Тест")
-        return None
-
         try:
             name = window.get_name()
             print(f"[THUMB] Имя окна: {name}")
