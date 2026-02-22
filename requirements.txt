@@ -1,0 +1,33 @@
+# =============================================================================
+# BrujoDock — Python Dependencies
+# =============================================================================
+# Version: 26.2
+# Python: 3.9+
+# License: MIT
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Core GUI (GTK3)
+# -----------------------------------------------------------------------------
+# PyGObject provides GTK3, Gdk, Gio, GLib bindings
+# System package required: python3-gi, gir1.2-gtk-3.0
+PyGObject>=3.42.0
+
+# -----------------------------------------------------------------------------
+# Drawing (Cairo)
+# -----------------------------------------------------------------------------
+# Used for custom drawing in dock and plugins
+# System package required: python3-cairo, libcairo2-dev
+# Note: Usually pre-installed with PyGObject
+PyCairo>=1.20.0
+
+# -----------------------------------------------------------------------------
+# Timezone Handling
+# -----------------------------------------------------------------------------
+# Used by Clock plugin for multi-timezone support
+pytz>=2022.0
+
+# -----------------------------------------------------------------------------
+# Optional: Better timezone detection (not required for 26.2)
+# -----------------------------------------------------------------------------
+# tzlocal>=4.0  # Uncomment if you want automatic system TZ detection

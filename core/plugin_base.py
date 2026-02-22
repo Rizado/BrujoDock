@@ -1,52 +1,69 @@
-# core/plugin_base.py
-from abc import ABC
-from typing import Optional, Dict, Any, TYPE_CHECKING
+import os
+import json
+from .settings import load_plugin, PLUGINS_DIR
+from .utils import log
 
-if TYPE_CHECKING:
-    from gi.repository import Gtk, Gdk
-    from .brujo_dock import BrujoDock
 
-class PluginBase(ABC):
-    name: str = "Unnamed Plugin"
-    version: str = "0.1"
-    enabled: bool = True
+class PluginBase:
+    name = "Unnamed Plugin"
+    description = "No description"
+    version = "0.0.0"
+    SETTINGS_FORM = []
+    default_settings = {}
 
-    def __init__(self, dock: 'BrujoDock'):
+    def __init__(self, dock):
         self.dock = dock
-        self.settings: Dict[str, Any] = {}
+        self.enabled = True
+        self.settings = {}
+        self._load_settings()
 
-    def on_init(self) -> None:
-        """Вызывается после создания плагина."""
+    def get_plugin_name(self) -> str:
+        return self.name.lower().replace(" ", "_")
+
+    def get_description(self) -> str:
+        return self.description
+
+    def _load_settings(self):
+        config_dir = os.path.expanduser("~/.config/BrujoDock/plugins")
+        config_path = os.path.join(config_dir, f"{self.get_plugin_name()}.json")
+
+        self.settings = dict(self.default_settings)
+
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    plugin_settings = json.load(f)
+                    self.settings.update(plugin_settings)
+                    log(f"[{self.name}] Loaded: {config_path}")
+            except Exception as e:
+                log(f"[{self.name}] Loading error: {e}")
+        else:
+            log(f"[{self.name}] There is no config, creating: {config_path}", "INFO")
+            self.save_settings()
+
+    def save_settings(self):
+        config_dir = os.path.expanduser("~/.config/BrujoDock/plugins")
+        config_path = os.path.join(config_dir, f"{self.get_plugin_name()}.json")
+
+        os.makedirs(config_dir, exist_ok=True)
+
+        with open(config_path, "w") as f:
+            json.dump(self.settings, f, indent=2)
+
+        log(f"[{self.name}] Saved: {config_path}")
+
+    def show_settings_dialog(self):
+        from core.plugin_settings_dialog import PluginSettingsDialog
+
+        dialog = PluginSettingsDialog(self)
+        dialog.run()
+        dialog.destroy()
+
+    def _open_settings(self):
+        self.show_settings_dialog()
+
+    def on_draw(self, cr, width, height):
         pass
 
-    def destroy(self) -> None:
-        """Очистка ресурсов."""
-        pass
-
-    def on_draw(self, cr, width: int, height: int) -> None:
-        """Рисование поверх дока (cairo context)."""
-        pass
-
-    def on_click(self, event: 'Gdk.EventButton') -> bool:
-        """Обработка клика. Вернуть True, если событие перехвачено."""
-        return False
-
-    def on_hover(self, x: float, y: float) -> None:
-        """Курсор над доком."""
-        pass
-
-    def on_leave(self) -> None:
-        """Курсор покинул док."""
-        pass
-
-    def on_tick(self) -> None:
-        """Вызывается раз в секунду."""
-        pass
-
-    def get_settings_widget(self) -> Optional['Gtk.Widget']:
-        """Возвращает виджет для вкладки настроек."""
-        return None
-
-    def on_settings_changed(self, new_settings: Dict[str, Any]) -> None:
-        """Вызывается при изменении настроек."""
-        self.settings.update(new_settings)
+    def get_preferred_size(self):
+        return (0, 0)

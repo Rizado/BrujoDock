@@ -1,36 +1,41 @@
 # core/strut_manager.py
-from gi.repository import GdkX11
+from gi.repository import Gdk
+from .utils import log
+
 
 try:
     from Xlib import X, display as xdisplay
+    HAS_XLIB = True
 except ImportError:
-    print("⚠️  python-xlib не установлен. Strut недоступен.")
-    xdisplay = None
+    log("⚠️  python-xlib isn't installed. Strut is no available.")
+    HAS_XLIB = False
 
+class StrutManager:
+    def __init__(self, dock):
+        self.dock = dock
 
-def set_strut(window, bottom_height):
-    if not xdisplay:
-        return False
+    def update(self, total_h = 48):
+        if not HAS_XLIB:
+            return
 
-    try:
-        gdk_window = window.get_window()
-        if not gdk_window or not hasattr(gdk_window, 'get_xid'):
-            return False
+        try:
+            gdk_window = self.dock.window.get_window()
+            if not gdk_window or not hasattr(gdk_window, 'get_xid'):
+                return
 
-        xid = gdk_window.get_xid()
-        d = xdisplay.Display()
-        xlib_window = d.create_resource_object('window', xid)
+            xid = gdk_window.get_xid()
+            d = xdisplay.Display()
+            xlib_window = d.create_resource_object('window', xid)
 
-        atom_strut = d.intern_atom("_NET_WM_STRUT")
-        atom_cardinal = d.get_atom("CARDINAL")
-        strut = [0, 0, 0, bottom_height]
+            atom_strut = d.intern_atom("_NET_WM_STRUT")
+            atom_cardinal = d.get_atom("CARDINAL")
 
-        # Без именованных аргументов!
-        xlib_window.change_property(atom_strut, atom_cardinal, 32, strut)
+            # Только высота дока — остальное 0
+#            alloc = self.dock.window.get_allocation()
+            strut = [0, 0, 0, total_h]  # left, right, top, bottom
 
-        d.flush()
-        return True
+            xlib_window.change_property(atom_strut, atom_cardinal, 32, strut)
+            d.flush()
 
-    except Exception as e:
-        print(f"[WARN] Ошибка установки strut: {e}")
-        return False
+        except Exception as e:
+            log(f"[STRUT] Error: {e}")

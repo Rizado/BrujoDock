@@ -1,21 +1,29 @@
-# utils.py
-def pluralize(n, forms):
-    """
-    Форматирует число по русским правилам.
-    forms = ('окно', 'окна', 'окон')
-    """
-    n = abs(int(n))
-    if n % 10 == 1 and n % 100 != 11:
-        return forms[0]
-    elif 2 <= n % 10 <= 4 and (n % 100 < 10 or n % 100 >= 20):
-        return forms[1]
-    else:
-        return forms[2]
+import sys
+from datetime import datetime
 
-def format_window_count(count):
-    if count == 0:
-        return "нет окон"
-    elif count == 1:
-        return "1 окно"
-    else:
-        return f"{count} {pluralize(count, ('окно', 'окна', 'окон'))}"
+_dock = None
+
+def init_logger(dock):
+    global _dock
+    _dock = dock
+
+def log(message, level="INFO"):
+    if _dock is None:
+        return
+
+    log_mode = _dock.settings.get("log_mode", "none")
+
+    if log_mode == "none":
+        return
+
+    elif log_mode == "console":
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"[{timestamp}] [{level}] {message}")
+
+    elif log_mode == "file":
+        # TODO: create logging to file
+        pass
+
+    elif log_mode == "memory":
+        # TODO: buffer in memory + writing many lines
+        pass
