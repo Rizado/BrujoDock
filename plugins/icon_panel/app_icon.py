@@ -71,18 +71,15 @@ class AppIcon:
             self.running_windows.remove(win)
 
     def set_hovered(self, hovered: bool):
-        """Устанавливает состояние наведения"""
         self.hovered = hovered
 
     def load_icon(self, size=32):
         if self.icon_surface:
             return self.icon_surface
 
-        # Попробуем загрузить через Gtk.IconTheme
         try:
             theme = Gtk.IconTheme.get_default()
             pixbuf = theme.load_icon(self.name, size, Gtk.IconLookupFlags.FORCE_SIZE)
-            # Конвертация Pixbuf → cairo.Surface — отдельная тема
         except Exception:
             pass
 
@@ -105,17 +102,14 @@ class AppIcon:
             from gi.repository import Gtk, Gdk, GdkPixbuf
             icon_theme = Gtk.IconTheme.get_default()
 
-            # 1. Приоритет: Wnck.App.get_icon()
             if self.app:
                 try:
                     gicon = self.app.get_icon()
                     if gicon:
                         if hasattr(gicon, 'get_filename'):
-                            # GdkPixbuf
                             self.icon_surface = Gdk.cairo_surface_create_from_pixbuf(gicon, 0, None)
                             return
                         else:
-                            # Gio.Icon — пробуем загрузить через тему
                             icon_info = icon_theme.lookup_by_gicon(gicon, size, Gtk.IconLookupFlags.FORCE_SIZE)
                             if icon_info:
                                 pixbuf = icon_info.load_icon()
@@ -124,24 +118,21 @@ class AppIcon:
                 except Exception:
                     pass
 
-            # 2. Если icon_name — путь к файлу
             if self.icon_name and self.icon_name.startswith("/"):
                 if os.path.exists(self.icon_name):
                     pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(self.icon_name, size, size)
                     self.icon_surface = Gdk.cairo_surface_create_from_pixbuf(pixbuf, 0, None)
                     return
 
-            # 3. GTK Icon Theme — пробуем несколько вариантов
             from .special_classes import get_icon_name_for_identifier
 
             icon_candidates = [
-                self.icon_name,  # из .desktop или окна
-                get_icon_name_for_identifier(self.identifier),  # через маппинг
-                self.identifier.split("-")[0],  # "libreoffice-calc" → "libreoffice"
-                self.identifier,  # на всякий случай
+                self.icon_name,
+                get_icon_name_for_identifier(self.identifier),
+                self.identifier.split("-")[0],
+                self.identifier,
             ]
 
-            # Убираем дубликаты и пустые
             icon_candidates = list(dict.fromkeys([c for c in icon_candidates if c and " " not in c]))
 
             for icon_name in icon_candidates:
@@ -150,29 +141,23 @@ class AppIcon:
                     self.icon_surface = Gdk.cairo_surface_create_from_pixbuf(pixbuf, 0, None)
                     return
                 except Exception:
-                    continue  # пробуем следующий вариант
-
-            # 4. Fallback уже установлен
+                    continue
 
         except Exception as e:
             log(f"[ICON] Ошибка загрузки: {e}")
-            # Оставляем fallback
 
     def _draw_badge(self, cr, x, y, settings):
         count = len(self.running_windows)
         icon_size = settings["icon_size"]
         pad_x = settings["icon_padding_x"]
 
-        # Позиция: правый верхний угол иконки (локальные координаты!)
-        badge_x = pad_x + icon_size - 12  # ← убрали x
+        badge_x = pad_x + icon_size - 12
         badge_y = y + 4
 
-        # Фон бейджа (красный круг)
         cr.set_source_rgb(0.81, 0.01, 0.10)
         cr.arc(badge_x + 6, badge_y + 6, 6, 0, 2 * 3.14159)
         cr.fill()
 
-        # Текст (белая цифра)
         cr.set_source_rgb(1, 1, 1)
         cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
         cr.set_font_size(8)
