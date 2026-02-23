@@ -4,7 +4,7 @@ from gi.repository import Gtk, Gdk, GLib
 from .settings import load_core
 from .strut_manager import StrutManager
 from .utils import init_logger, log
-from .i18n import init_i18n, _, get_available_languages
+from .i18n import init_i18n, _, get_available_languages, _detect_language
 
 
 class BrujoDock:
@@ -12,7 +12,8 @@ class BrujoDock:
 
     def __init__(self):
         self._plugin_rects = []  # (plugin, x, y, w, h)
-        self.settings = load_core()
+        system_lang = _detect_language()
+        self.settings = load_core(default_language=system_lang)
         init_logger(self)
         init_i18n(self.settings.get("language", None), dock=self)
 

@@ -31,7 +31,8 @@ def ensure_core_config():
         with open(CORE_PATH, 'w') as f:
             json.dump(DEFAULT_CORE, f, indent=2)
 
-def load_core():
+def load_core(default_language="en"):
+    DEFAULT_CORE["language"] = default_language
     ensure_core_config()
     with open(CORE_PATH, 'r') as f:
         user = json.load(f)
