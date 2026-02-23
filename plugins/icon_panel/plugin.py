@@ -169,9 +169,8 @@ class Plugin(PluginBase):
         panel_pad_x = settings.get("panel_padding_x", 4)
         icon_pad_x = settings.get("icon_padding_x", 2)
         spacing = settings.get("icon_spacing", 2)
-        dock_pad_x = self.dock.settings.get("dock_padding_x", 16)
 
-        x = event.x - dock_pad_x
+        x = event.x - self.get_plugin_xpos()
         index = 0
         current_x = panel_pad_x
 
@@ -256,9 +255,7 @@ class Plugin(PluginBase):
         panel_pad_x = settings.get("panel_padding_x", 4)
         icon_pad_x = settings.get("icon_padding_x", 2)
         spacing = settings.get("icon_spacing", 2)
-        dock_pad_x = self.dock.settings.get("dock_padding_x", 16)
-
-        x = event.x - dock_pad_x
+        x = event.x - self.get_plugin_xpos()
         button = event.button
         index = 0
         current_x = panel_pad_x

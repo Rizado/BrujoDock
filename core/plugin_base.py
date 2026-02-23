@@ -23,6 +23,17 @@ class PluginBase:
     def get_description(self) -> str:
         return self.description
 
+    def get_plugin_xpos(self) -> int:
+        for i, plugin in enumerate(self.dock.plugins):
+            if plugin.name == self.name:
+                offset = self.dock.settings.get("dock_padding_x", 16)
+                for j in range(i):
+                    prev_plugin = self.dock.plugins[j]
+                    offset += prev_plugin.get_preferred_size()[0]
+                    offset += self.dock.settings.get("plugin_spacing", 8)
+                return offset
+        return 0
+
     def _load_settings(self):
         config_dir = os.path.expanduser("~/.config/BrujoDock/plugins")
         config_path = os.path.join(config_dir, f"{self.get_plugin_name()}.json")
